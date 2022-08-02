@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components/macro';
 import axios from 'axios';
+import {v4 as uuidv4} from 'uuid';
 
-const CHUNK_SIZE = 50 * 1024;
+const CHUNK_SIZE = 1048576 * 3; //3MB
 
 interface Props {
     
@@ -17,10 +18,11 @@ const DropZone = ({}: Props) => {
     const [files, setFiles] = useState<Array<UploadFile>>([]);
 
     const [curFileIdx, setCurFileIdx] = useState<number | null>(null);
-    const [lastUploadedFileIdx, setLastUploadedFileIdx] = useState<number | null>(null);
-    
+    const [lastUploadedFileIdx, setLastUploadedFileIdx] = useState<number | null>(null);    
 
     const [curChunkIdx, setCurChunkIdx] = useState<number | null>(null);
+
+    const [fileUuid, setFileUuid] = useState<string>('');
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -53,7 +55,7 @@ const DropZone = ({}: Props) => {
             const data = target.result;
 
             const params = new URLSearchParams();
-            params.set('name', file.name);
+            params.set('name', fileUuid+file.name);
             params.set('size', file.size.toString());
             params.set('curChunkIdx', `${curChunkIdx}`);
             params.set('totalChunks', `${Math.ceil(file.size / CHUNK_SIZE)}`)
@@ -90,6 +92,7 @@ const DropZone = ({}: Props) => {
     useEffect(() => {
         if(files.length > 0) {
             if(curFileIdx === null) {
+                setFileUuid(uuidv4());
                 setCurFileIdx(lastUploadedFileIdx === null ? 0 : lastUploadedFileIdx + 1);
             }
         }
