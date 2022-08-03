@@ -13,14 +13,17 @@ const Home = ({}: Props) => {
 
     return (
         <>
-            <button onClick={toggleLogin}>{isLogin ? 'logout' : 'login'}</button>
+            <button onClick={toggleLogin}>{isLogin ? 'toggle On' : 'toggle Off'}</button>
             {
                 isLogin ? (
-                    <div>Welcome~!</div>
+                    <div>ON</div>
                 ) : (
-                    <div>You need to login.</div>
+                    <div>OFF</div>
                 )
             }
+            <div style={{
+                marginBottom: 20,
+            }}></div>
         </>
     )
 };

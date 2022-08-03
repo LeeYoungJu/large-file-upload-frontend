@@ -23,6 +23,7 @@ const DropZone = ({}: Props) => {
     const [curChunkIdx, setCurChunkIdx] = useState<number | null>(null);
 
     const [fileUuid, setFileUuid] = useState<string>('');
+    const [isLastFile, setIsLastFile] = useState<boolean>(false);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -46,9 +47,7 @@ const DropZone = ({}: Props) => {
         }
     };
 
-    const uploadChunk = (e: ProgressEvent) => {
-        console.log(e);
-        
+    const uploadChunk = (e: ProgressEvent) => {        
         if(curFileIdx !== null && curChunkIdx !== null) {
             const file = files[curFileIdx];
             const target = e.target as any
@@ -72,7 +71,9 @@ const DropZone = ({}: Props) => {
                         setCurChunkIdx(null);
                         setDropzoneActive(false);
                     } else {
-                        setCurChunkIdx(curChunkIdx + 1);
+                        // setTimeout(() => {
+                            setCurChunkIdx(curChunkIdx + 1);
+                        // }, 50);
                     }
                 });            
         }        
@@ -83,11 +84,22 @@ const DropZone = ({}: Props) => {
             if(lastUploadedFileIdx === null) {
                 return;
             }
-            const isLastFile = lastUploadedFileIdx === files.length - 1;
-            const nextFileIdx = isLastFile ? null : curFileIdx + 1;
+            const isLastFileLocal = lastUploadedFileIdx === files.length - 1
+            const nextFileIdx = isLastFileLocal ? null : curFileIdx + 1;
             setCurFileIdx(nextFileIdx);
+            
+            setIsLastFile(isLastFileLocal);
         }
     }, [lastUploadedFileIdx]);
+
+    useEffect(() => {
+        if(isLastFile) {
+            setFiles([]);
+            setCurFileIdx(null);
+            setIsLastFile(false);
+            setLastUploadedFileIdx(null);
+        }
+    }, [isLastFile])
 
     useEffect(() => {
         if(files.length > 0) {
@@ -142,12 +154,12 @@ const DropZone = ({}: Props) => {
                         }
                     }
                     return (
-                        <a className='file' target="_blank"
+                        <a key={file.name} className='file' target="_blank"
                             href={`http://localhost:8000/uploads/${file.finalFileName}`}>
-                            <div className='name'>{file.name}</div>
+                            <FileNameDiv className='name'>{file.name}</FileNameDiv>
                             <ProgressDiv style={{
                                 width: progress+'%'
-                            }}>{progress}</ProgressDiv>
+                            }}>{progress}%</ProgressDiv>
                         </a>
                     )
                 })}
@@ -187,7 +199,18 @@ const FileDiv = styled.div`
 `;
 
 const ProgressDiv = styled.div`
-    background-color: rgba(80,80,120, 0.8);
+    background-color: white;
+    color: black;
+    padding-left: 10px;
     position: absolute;
     inset: 0;
+    z-index:9;
+`;
+
+const FileNameDiv = styled.div`
+    position: absolute;
+    color: black;
+    z-index:999;
+    top: 0;
+    left: 50px;
 `;
