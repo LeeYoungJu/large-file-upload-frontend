@@ -25,6 +25,9 @@ const DropZone = ({}: Props) => {
     const [fileUuid, setFileUuid] = useState<string>('');
     const [isLastFile, setIsLastFile] = useState<boolean>(false);
 
+    const [startDate, setStartDate] = useState<Date | null>(null);
+    const [endDate, setEndDate] = useState<Date | null>(null);
+
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         const fileArray = Array.from(e.dataTransfer.files);
@@ -75,7 +78,9 @@ const DropZone = ({}: Props) => {
                             setCurChunkIdx(curChunkIdx + 1);
                         // }, 50);
                     }
-                });            
+                    const now = new Date();
+                    setEndDate(now);
+                });
         }        
     };
 
@@ -113,6 +118,8 @@ const DropZone = ({}: Props) => {
 
     useEffect(() => {
         if(curFileIdx !== null) {
+            const now = new Date();
+            setStartDate(now);
             setCurChunkIdx(0);
         }        
     }, [curFileIdx]);
@@ -164,6 +171,13 @@ const DropZone = ({}: Props) => {
                     )
                 })}
             </FileDiv>
+            {
+                startDate && endDate && (
+                    <UploadTimeDiv>
+                        {Math.round((endDate.getTime() - startDate.getTime())/1000)}
+                    </UploadTimeDiv>
+                )
+            }
         </div>
     );
 };
@@ -213,4 +227,10 @@ const FileNameDiv = styled.div`
     z-index:999;
     top: 0;
     left: 50px;
+`;
+
+const UploadTimeDiv = styled.div`
+    color: white;
+    font-size: 16px;
+    padding: 10px;
 `;
