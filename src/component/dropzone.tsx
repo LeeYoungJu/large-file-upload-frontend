@@ -31,8 +31,15 @@ const DropZone = ({}: Props) => {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         const fileArray = Array.from(e.dataTransfer.files);
-        setFiles([...files, ...fileArray]);        
+        setFiles([...files, ...fileArray]);
         
+    };
+
+    const handleSelectFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if(e.currentTarget.files) {
+            const fileArray = Array.from(e.currentTarget.files);
+            setFiles([...files, ...fileArray]);
+        }        
     };
 
     const readAndUploadCurChunk = () => {
@@ -144,6 +151,9 @@ const DropZone = ({}: Props) => {
                 onDrop={(e: React.DragEvent) => handleDrop(e)}
                 isActive={dropzoneActive}
             >
+                <DropZoneLabel>
+                    <input type="file" multiple onChange={handleSelectFiles} />
+                </DropZoneLabel>
 
             </DropZoneDiv>    
             <FileDiv>
@@ -192,12 +202,20 @@ interface DropZoneProps {
 const DropZoneDiv = styled.div<DropZoneProps>`
     border: 2px dashed rgba(255,255,255,0.2);
     border-radius: 10px;
-    padding: 50px 0;
+    height: 100px;
     text-align: center;
     text-transform: uppercase;
     color: rgba(255,255,255,0.6);
     ${(props) => props.isActive ? 'border-color: #fff;' : ''}
+`;
 
+const DropZoneLabel = styled.label`
+    display: block;
+    width: 100%;
+    height: 100%;
+    input[type="file"] {
+        display: none;
+    }
 `;
 
 const FileDiv = styled.div`
