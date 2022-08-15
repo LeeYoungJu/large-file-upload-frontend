@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components/macro';
-import apiService from 'util/axios';
+import { sio } from 'util/socketio';
+// import {io, Socket} from 'socket.io-client';
 import {v4 as uuidv4} from 'uuid';
 import md5 from "md5";
 
 const CHUNK_SIZE = 1048576 * 3; //3MB
+// const CHUNK_SIZE = 100000 * 5;
 
 interface Props {
     
@@ -14,7 +16,7 @@ interface UploadFile extends File {
     finalFileName?: string;
 }
 
-const DropZone = ({}: Props) => {
+const DropZoneSocket = ({}: Props) => {    
     const [dropzoneActive, setDropzoneActive] = useState<boolean>(false);
     const [files, setFiles] = useState<Array<UploadFile>>([]);
 
@@ -28,6 +30,52 @@ const DropZone = ({}: Props) => {
 
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
+
+    useEffect(() => {        
+
+        sio.on("connect", () => {
+            console.log("connect!");            
+        });
+
+        return () => {
+            sio.off("connect");
+        }
+        
+    }, []);
+
+    useEffect(() => {
+        if(!sio) {
+            return;
+        }
+
+        sio.on("uploadComplete", (arg) => {
+            console.log(arg);
+            
+            if(curFileIdx === null || curChunkIdx === null) {
+                return;
+            }
+
+            const fileSize = files[curFileIdx].size;
+            const isLastChunk = curChunkIdx === Math.ceil(fileSize / CHUNK_SIZE) - 1;            
+            if(isLastChunk) {
+                // file.finalFileName = res.data.finalFileName;                        
+                setLastUploadedFileIdx(curFileIdx);
+                setCurChunkIdx(null);
+                setDropzoneActive(false);
+            } else {                
+                setCurChunkIdx(curChunkIdx + 1);                
+            }
+            const now = new Date();
+            setEndDate(now);
+            
+        });
+
+        return () => {
+            if(sio) {
+                sio.off("uploadComplete");
+            }
+        }
+    }, [curFileIdx, curChunkIdx]);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -58,46 +106,25 @@ const DropZone = ({}: Props) => {
         }
     };
 
-    const uploadChunk = (e: ProgressEvent) => {        
-        if(curFileIdx !== null && curChunkIdx !== null) {
+    const uploadChunk = (e: ProgressEvent) => {
+        
+        if(curFileIdx !== null && curChunkIdx !== null && sio) {
             const file = files[curFileIdx];
             const target = e.target as any
             const data = target.result;
             const name = fileUuid+file.name;
             const md5Name = md5(name);
 
-            const params = new URLSearchParams();
-            params.set('name', name);
-            params.set('md5Name', md5Name);
-            params.set('size', file.size.toString());
-            params.set('curChunkIdx', `${curChunkIdx}`);
-            params.set('totalChunks', `${Math.ceil(file.size / CHUNK_SIZE)}`)
-            const headers = {'Content-Type': 'application/octet-stream'};
-            const url = `upload?${params.toString()}`;
-            
-            const promise = apiService.post(url, data, {headers});
-            if(!promise) {
-                return;
-            }
-            promise.then(res => {                    
-                const fileSize = files[curFileIdx].size;
-                const isLastChunk = curChunkIdx === Math.ceil(fileSize / CHUNK_SIZE) - 1;
-                if(isLastChunk) {
-                    file.finalFileName = res.data.finalFileName;                        
-                    setLastUploadedFileIdx(curFileIdx);
-                    setCurChunkIdx(null);
-                    setDropzoneActive(false);
+            const params = {
+                name,
+                md5Name,
+                size: file.size,
+                curChunkIdx,
+                totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+                data
+            };
 
-                    const now = new Date();
-                    setEndDate(now);
-                } else {
-                    // setTimeout(() => {
-                        setCurChunkIdx(curChunkIdx + 1);
-                    // }, 50);
-                }                
-            });
-            const now = new Date();
-            setEndDate(now);
+            sio.emit('upload', params);
         }        
     };
 
@@ -202,7 +229,7 @@ const DropZone = ({}: Props) => {
     );
 };
 
-export default DropZone;
+export default DropZoneSocket;
 
 
 interface DropZoneProps {
@@ -216,7 +243,7 @@ const DropZoneDiv = styled.div<DropZoneProps>`
     text-align: center;
     text-transform: uppercase;
     color: rgba(255,255,255,0.6);
-    ${(props) => props.isActive ? 'border-color: #fff;' : ''}    
+    ${(props) => props.isActive ? 'border-color: #fff;' : ''}
 `;
 
 const DropZoneLabel = styled.label`
