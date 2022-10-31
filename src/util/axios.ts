@@ -42,6 +42,24 @@ class Api {
 		return this.http.post(path, params, config);
 	}
 
+	postForm(path: string, formData: FormData, onProgress: (e: ProgressEvent) => void) {
+		if(this.http === null) {
+            return null;
+        }
+
+		return this.http.post(path, formData, {
+			onUploadProgress: (e) => {
+				if(onProgress) {
+					onProgress(e);
+				}				
+			},
+			headers: {
+				'Content-Type': 'multipart/form-data'
+			}
+		});
+
+	}
+
 	async getAsync(path: string, params = {}, config = {}) {
         if(this.http === null) {
             return;

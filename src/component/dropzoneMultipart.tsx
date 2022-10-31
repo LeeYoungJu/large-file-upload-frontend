@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import apiService from 'util/axios';
+import { DropZoneDiv, DropZoneLabel, FileDiv, ProgressDiv, FileNameDiv, UploadTimeDiv } from 'styles/dropzone';
 import {v4 as uuidv4} from 'uuid';
 import md5 from "md5";
-import { DropZoneDiv, DropZoneLabel, FileDiv, ProgressDiv, FileNameDiv, UploadTimeDiv } from 'styles/dropzone';
+import apiService from 'util/axios';
 
 const CHUNK_SIZE = 1048576 * 3; //3MB
+
 
 interface Props {
     
@@ -14,7 +15,8 @@ interface UploadFile extends File {
     finalFileName?: string;
 }
 
-const DropZone = ({}: Props) => {
+
+const DropZoneMultipart = ({}: Props) => {
     const [dropzoneActive, setDropzoneActive] = useState<boolean>(false);
     const [files, setFiles] = useState<Array<UploadFile>>([]);
 
@@ -32,8 +34,7 @@ const DropZone = ({}: Props) => {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         const fileArray = Array.from(e.dataTransfer.files);
-        setFiles([...files, ...fileArray]);
-        
+        setFiles([...files, ...fileArray]);        
     };
 
     const handleSelectFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,86 +43,6 @@ const DropZone = ({}: Props) => {
             setFiles([...files, ...fileArray]);
         }        
     };
-
-    const readAndUploadCurChunk = () => {
-        if(curFileIdx !== null && curChunkIdx != null) {
-            const reader = new FileReader();
-            const file = files[curFileIdx];
-            if(!file) {
-                return;
-            }
-            const from = curChunkIdx * CHUNK_SIZE;
-            const to = from + CHUNK_SIZE;
-            const blob = file.slice(from, to);
-            reader.onload = (e) => uploadChunk(e);
-            reader.readAsDataURL(blob);
-        }
-    };
-
-    const uploadChunk = (e: ProgressEvent) => {        
-        if(curFileIdx !== null && curChunkIdx !== null) {
-            const file = files[curFileIdx];
-            const target = e.target as any
-            const data = target.result;
-            const name = fileUuid+file.name;
-            const md5Name = md5(name);
-
-            const params = new URLSearchParams();
-            params.set('name', name);
-            params.set('md5Name', md5Name);
-            params.set('size', file.size.toString());
-            params.set('curChunkIdx', `${curChunkIdx}`);
-            params.set('totalChunks', `${Math.ceil(file.size / CHUNK_SIZE)}`)
-            const headers = {'Content-Type': 'application/octet-stream'};
-            const url = `upload?${params.toString()}`;
-            
-            const promise = apiService.post(url, data, {headers});
-            if(!promise) {
-                return;
-            }
-            promise.then(res => {                    
-                const fileSize = files[curFileIdx].size;
-                const isLastChunk = curChunkIdx === Math.ceil(fileSize / CHUNK_SIZE) - 1;
-                if(isLastChunk) {
-                    file.finalFileName = res.data.finalFileName;                        
-                    setLastUploadedFileIdx(curFileIdx);
-                    setCurChunkIdx(null);
-                    setDropzoneActive(false);
-
-                    const now = new Date();
-                    setEndDate(now);
-                } else {
-                    // setTimeout(() => {
-                        setCurChunkIdx(curChunkIdx + 1);
-                    // }, 50);
-                }                
-            });
-            const now = new Date();
-            setEndDate(now);
-        }        
-    };
-
-    useEffect(() => {
-        if(curFileIdx !== null) {
-            if(lastUploadedFileIdx === null) {
-                return;
-            }
-            const isLastFileLocal = lastUploadedFileIdx === files.length - 1
-            const nextFileIdx = isLastFileLocal ? null : curFileIdx + 1;
-            setCurFileIdx(nextFileIdx);
-            
-            setIsLastFile(isLastFileLocal);
-        }
-    }, [lastUploadedFileIdx]);
-
-    useEffect(() => {
-        if(isLastFile) {
-            setFiles([]);
-            setCurFileIdx(null);
-            setIsLastFile(false);
-            setLastUploadedFileIdx(null);
-        }
-    }, [isLastFile])
 
     useEffect(() => {
         if(files.length > 0) {
@@ -146,6 +67,67 @@ const DropZone = ({}: Props) => {
             readAndUploadCurChunk();
         }
     }, [curChunkIdx]);
+
+    const readAndUploadCurChunk = () => {
+        if(curFileIdx !== null && curChunkIdx != null) {
+            const reader = new FileReader();
+            const file = files[curFileIdx];
+            if(!file) {
+                return;
+            }
+            const from = curChunkIdx * CHUNK_SIZE;
+            const to = from + CHUNK_SIZE;
+            const blob = file.slice(from, to);
+            reader.onload = (e) => uploadChunk(e);
+            reader.readAsDataURL(blob);
+        }
+    };
+
+    const uploadChunk = (e: ProgressEvent) => {        
+        if(curFileIdx !== null && curChunkIdx !== null) {
+            const file = files[curFileIdx];
+            const target = e.target as any
+            const data = target.result;
+            const name = fileUuid+file.name;
+            const md5Name = md5(name);
+
+            const params = {
+                name,
+                md5Name,
+                size: file.size.toString(),
+                curChunkIdx: `${curChunkIdx}`,
+                totalChunks: `${Math.ceil(file.size / CHUNK_SIZE)}`,
+                file: data,
+            };            
+
+            const url = `files`;
+
+            const promise = apiService.post(url, params);
+            if(!promise) {
+                return;
+            }
+            promise.then(res => {                    
+                const fileSize = files[curFileIdx].size;
+                const isLastChunk = curChunkIdx === Math.ceil(fileSize / CHUNK_SIZE) - 1;
+                if(isLastChunk) {
+                    file.finalFileName = res.data.finalFileName;                        
+                    setLastUploadedFileIdx(curFileIdx);
+                    setCurChunkIdx(null);
+                    setDropzoneActive(false);
+
+                    const now = new Date();
+                    setEndDate(now);
+                } else {
+                    // setTimeout(() => {
+                        setCurChunkIdx(curChunkIdx + 1);
+                    // }, 50);
+                }                
+            });
+            const now = new Date();
+            setEndDate(now);
+            
+        }        
+    };
 
     return (
         <div>
@@ -202,4 +184,4 @@ const DropZone = ({}: Props) => {
     );
 };
 
-export default DropZone;
+export default DropZoneMultipart;
